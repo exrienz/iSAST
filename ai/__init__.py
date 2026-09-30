@@ -1,0 +1,1 @@
+"""AI analysis layer: validation, deduplication, canonicalization, wording."""

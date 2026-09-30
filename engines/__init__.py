@@ -1,0 +1,1 @@
+"""Scanner engines: OpenGrep and CodeQL."""

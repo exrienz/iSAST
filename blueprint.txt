@@ -1,0 +1,1534 @@
+# iSAST — Full Application Build Specification
+
+## 1. Product definition
+
+**iSAST** is a zero-configuration, CLI-first SAST orchestrator combining:
+
+* **OpenGrep** — broad, multi-language SAST and taint analysis
+* **CodeQL** — deeper semantic/data-flow analysis
+* **AI analysis** — finding validation, normalization, deduplication, severity refinement, and professional wording
+* **CSV/JSON reporting** — designed for downstream ingestion into ThreatVault/CodXprt
+
+The primary UX must remain:
+
+```bash
+python isast.py --source=/path/to/source --report=final.csv
+```
+
+No manual language selection.
+No manual OpenGrep configuration.
+No manual CodeQL commands.
+
+---
+
+# 2. High-level architecture
+
+```text
+                         ┌─────────────────────┐
+                         │      isast.py       │
+                         │        CLI          │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │ Dependency Manager  │
+                         │                     │
+                         │ OpenGrep            │
+                         │ CodeQL              │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │ Source Analyzer     │
+                         │                     │
+                         │ Language detection  │
+                         │ Manifest detection  │
+                         │ Build detection     │
+                         └──────────┬──────────┘
+                                    │
+                    ┌───────────────┴───────────────┐
+                    │                               │
+                    ▼                               ▼
+             ┌──────────────┐               ┌──────────────┐
+             │   OpenGrep   │               │    CodeQL    │
+             │              │               │              │
+             │ Multi-lang   │               │ Per-language │
+             │ High recall  │               │ Deep SAST    │
+             └───────┬──────┘               └──────┬───────┘
+                     │                              │
+                     │                         Build required?
+                     │                              │
+                     │                       ┌──────┴──────┐
+                     │                       │             │
+                     │                      NO            YES
+                     │                       │             │
+                     │                       │      ┌────────────┐
+                     │                       │      │   Build    │
+                     │                       │      │  Sandbox   │
+                     │                       │      └─────┬──────┘
+                     │                       │            │
+                     │                       └──────┬─────┘
+                     │                              │
+                     └──────────────┬───────────────┘
+                                    ▼
+                              SARIF Parser
+                                    │
+                                    ▼
+                         Finding Normalizer
+                                    │
+                                    ▼
+                         Candidate Dedup Groups
+                                    │
+                                    ▼
+                            ┌──────────────┐
+                            │ AI Analyzer  │
+                            │              │
+                            │ Validate     │
+                            │ Deduplicate  │
+                            │ Normalize    │
+                            │ Rewrite      │
+                            │ Risk         │
+                            └──────┬───────┘
+                                   │
+                         ┌─────────┴─────────┐
+                         ▼                   ▼
+                    final.csv          findings.json
+                                             │
+                                             ▼
+                                        ThreatVault
+```
+
+---
+
+# 3. Core design principles
+
+### iSAST owns
+
+```text
+Detection
+Dependency installation
+Scanner execution
+Build detection
+Build isolation
+SARIF parsing
+Finding normalization
+Fingerprinting
+AI orchestration
+Reporting
+```
+
+### AI owns
+
+```text
+Validation
+False-positive assessment
+Finding deduplication
+Canonical naming
+Description improvement
+Severity recommendation
+CWE/OWASP enrichment
+Remediation wording
+```
+
+### iSAST must NOT
+
+* claim exploitation without evidence
+* delete raw scanner findings
+* silently execute untrusted builds on the host
+* require a specific AI vendor
+* require users to configure languages
+* require users to understand CodeQL
+
+---
+
+# 4. User interface
+
+## Basic scan
+
+```bash
+python isast.py \
+    --source=/workspace/project \
+    --report=final.csv
+```
+
+## Advanced
+
+```bash
+python isast.py \
+    --source=/workspace/project \
+    --report=final.csv \
+    --threads=8 \
+    --timeout=3600
+```
+
+## Diagnostics
+
+```bash
+python isast.py --doctor
+```
+
+## Update engines
+
+```bash
+python isast.py --update
+```
+
+## Version
+
+```bash
+python isast.py --version
+```
+
+## Offline scan
+
+```bash
+python isast.py \
+    --source=/workspace/project \
+    --report=final.csv \
+    --offline
+```
+
+---
+
+# 5. CLI requirements
+
+### Required
+
+```text
+--source PATH
+--report PATH
+```
+
+### Optional
+
+```text
+--threads N
+--timeout SECONDS
+--workdir PATH
+--keep-workdir
+--verbose
+--quiet
+--offline
+--non-interactive
+--config PATH
+--update
+--version
+--doctor
+```
+
+Don't expose normal-user options such as:
+
+```text
+--language
+--codeql-language
+--opengrep-config
+--maven-command
+--gradle-command
+--npm-command
+```
+
+Automatic detection handles these.
+
+---
+
+# 6. Runtime requirements
+
+Target:
+
+```text
+Python 3.10+
+Linux x86_64
+```
+
+Supported/targeted:
+
+```text
+Ubuntu 22.04+
+Ubuntu 24.04+
+Debian 12+
+RHEL 9+
+Rocky Linux 9+
+AlmaLinux 9+
+macOS Intel
+macOS Apple Silicon
+```
+
+Windows can be added later.
+
+iSAST itself should **not** require:
+
+```text
+Java
+Node.js
+Go
+Rust
+Maven
+Gradle
+Docker
+```
+
+These become requirements only when the scanned project needs them for CodeQL build tracing.
+
+---
+
+# 7. Application structure
+
+```text
+isast/
+│
+├── isast.py
+├── requirements.txt
+├── README.md
+├── .env.example
+├── config.example.yaml
+│
+├── core/
+│   ├── __init__.py
+│   ├── scanner.py
+│   ├── executor.py
+│   ├── dependency.py
+│   ├── workspace.py
+│   ├── resources.py
+│   └── models.py
+│
+├── detection/
+│   ├── __init__.py
+│   ├── language.py
+│   ├── manifest.py
+│   └── build.py
+│
+├── engines/
+│   ├── __init__.py
+│   ├── opengrep.py
+│   └── codeql.py
+│
+├── builders/
+│   ├── __init__.py
+│   ├── base.py
+│   ├── maven.py
+│   ├── gradle.py
+│   ├── npm.py
+│   ├── go.py
+│   ├── cargo.py
+│   ├── cmake.py
+│   └── dotnet.py
+│
+├── sandbox/
+│   ├── __init__.py
+│   ├── manager.py
+│   └── executor.py
+│
+├── parsers/
+│   ├── __init__.py
+│   └── sarif.py
+│
+├── findings/
+│   ├── __init__.py
+│   ├── normalizer.py
+│   ├── fingerprint.py
+│   └── grouping.py
+│
+├── ai/
+│   ├── __init__.py
+│   ├── provider.py
+│   ├── openai_compatible.py
+│   ├── prompts.py
+│   ├── validator.py
+│   ├── deduplicator.py
+│   └── analyzer.py
+│
+├── output/
+│   ├── __init__.py
+│   ├── csv.py
+│   └── json.py
+│
+└── tests/
+    ├── test_detection.py
+    ├── test_normalizer.py
+    ├── test_fingerprint.py
+    ├── test_ai.py
+    └── test_cli.py
+```
+
+---
+
+# 8. Dependency management
+
+iSAST owns its tools under:
+
+```text
+~/.isast/
+```
+
+Recommended:
+
+```text
+~/.isast/
+├── bin/
+│   ├── opengrep
+│   └── codeql
+│
+├── tools/
+│   └── codeql/
+│
+├── cache/
+│   ├── downloads/
+│   └── checksums/
+│
+├── scans/
+├── databases/
+├── logs/
+└── config/
+```
+
+Startup:
+
+```text
+Check OpenGrep
+       │
+       ├── found → verify
+       └── missing → download/install
+       
+Check CodeQL
+       │
+       ├── found → verify
+       └── missing → download/install
+```
+
+Versions are pinned.
+
+```env
+OPENGREP_VERSION=<PINNED_VERSION>
+CODEQL_VERSION=<PINNED_VERSION>
+```
+
+Do not update engines during every scan.
+
+---
+
+# 9. `.env` configuration
+
+Use `.env` for secrets and AI settings.
+
+Example:
+
+```env
+# ========================================
+# iSAST
+# ========================================
+
+ISAST_WORKDIR=/tmp/isast
+
+# ========================================
+# Scanner versions
+# ========================================
+
+OPENGREP_VERSION=<PINNED_VERSION>
+CODEQL_VERSION=<PINNED_VERSION>
+
+# ========================================
+# AI
+# ========================================
+
+AI_ENABLED=true
+
+AI_BASE_URL=https://api.openai.com/v1
+AI_API_KEY=sk-xxxxxxxx
+AI_MODEL=gpt-5.6
+
+AI_TIMEOUT=120
+AI_MAX_RETRIES=3
+AI_TEMPERATURE=0
+AI_BATCH_SIZE=20
+AI_CONTEXT_LINES=30
+
+AI_VALIDATE=true
+AI_DEDUP=true
+AI_REWRITE=true
+AI_RISK_ANALYSIS=true
+```
+
+---
+
+# 10. OpenAI-compatible provider
+
+The AI client must use an OpenAI-compatible interface.
+
+Conceptually:
+
+```text
+POST {AI_BASE_URL}/chat/completions
+Authorization: Bearer {AI_API_KEY}
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "model": "gpt-5.6",
+  "temperature": 0,
+  "messages": [
+    {
+      "role": "system",
+      "content": "..."
+    },
+    {
+      "role": "user",
+      "content": "..."
+    }
+  ]
+}
+```
+
+The provider is therefore configurable.
+
+Examples:
+
+```text
+OpenAI
+Bifrost
+LiteLLM
+vLLM
+Ollama-compatible gateway
+other OpenAI-compatible gateway
+```
+
+Only these change:
+
+```env
+AI_BASE_URL=
+AI_API_KEY=
+AI_MODEL=
+```
+
+---
+
+# 11. Language detection
+
+The detector combines:
+
+### Source extensions
+
+```text
+.py
+.java
+.js
+.jsx
+.ts
+.tsx
+.go
+.c
+.h
+.cpp
+.hpp
+.cs
+.php
+.rb
+.rs
+.kt
+.kts
+.swift
+.scala
+```
+
+### Manifests
+
+```text
+pyproject.toml
+requirements.txt
+setup.py
+
+pom.xml
+build.gradle
+build.gradle.kts
+
+package.json
+
+go.mod
+
+Cargo.toml
+
+*.csproj
+*.sln
+
+composer.json
+Gemfile
+```
+
+---
+
+# 12. Detection example
+
+Given:
+
+```text
+project/
+├── backend/
+│   ├── pom.xml
+│   └── *.java
+├── api/
+│   ├── pyproject.toml
+│   └── *.py
+└── frontend/
+    ├── package.json
+    └── *.tsx
+```
+
+Output:
+
+```text
+[+] Languages detected
+
+    Java          11,240 LOC
+    Python        18,420 LOC
+    TypeScript     9,210 LOC
+```
+
+Internally:
+
+```json
+{
+  "languages": [
+    {
+      "name": "java",
+      "build_system": "maven",
+      "codeql_supported": true
+    },
+    {
+      "name": "python",
+      "build_system": "pip",
+      "codeql_supported": true
+    },
+    {
+      "name": "typescript",
+      "build_system": "npm",
+      "codeql_supported": true
+    }
+  ]
+}
+```
+
+---
+
+# 13. OpenGrep execution
+
+OpenGrep runs across the source tree.
+
+Recommended default:
+
+```bash
+opengrep scan \
+    --config auto \
+    --severity INFO \
+    --sarif \
+    --output opengrep.sarif \
+    --exclude .git \
+    --exclude node_modules \
+    --exclude vendor \
+    --exclude dist \
+    --exclude build \
+    --exclude target \
+    --exclude coverage \
+    --exclude .venv \
+    --exclude venv \
+    --exclude __pycache__ \
+    .
+```
+
+The scanner should favor **recall over aggressive suppression**.
+
+---
+
+# 14. CodeQL execution
+
+For each supported language:
+
+```text
+detect
+  ↓
+create CodeQL database
+  ↓
+build if necessary
+  ↓
+analyze
+  ↓
+SARIF
+```
+
+Example Python:
+
+```bash
+codeql database create codeql-python \
+    --language=python \
+    --source-root=/source
+```
+
+Java:
+
+```bash
+codeql database create codeql-java \
+    --language=java \
+    --command="./mvnw clean package -DskipTests"
+```
+
+JavaScript/TypeScript:
+
+```bash
+codeql database create codeql-javascript \
+    --language=javascript-typescript \
+    --source-root=/source
+```
+
+Then analyze using the configured security query suite.
+
+---
+
+# 15. Build resolver
+
+```text
+BuildResolver
+│
+├── Python
+│
+├── Maven
+│
+├── Gradle
+│
+├── NPM
+├── Yarn
+├── PNPM
+│
+├── Go
+│
+├── Cargo
+│
+├── CMake
+├── Make
+│
+└── .NET
+```
+
+It returns:
+
+```python
+BuildPlan(
+    required=True,
+    ecosystem="maven",
+    command=["./mvnw", "clean", "package", "-DskipTests"]
+)
+```
+
+Never construct commands using raw shell strings.
+
+---
+
+# 16. Build sandbox
+
+The sandbox exists **only to execute project-controlled build activity**.
+
+It is not required for OpenGrep.
+
+It is not inherently required for CodeQL analysis.
+
+```text
+CodeQL
+  │
+  ▼
+Build required?
+  │
+  ├── NO → CodeQL database
+  │
+  └── YES
+       │
+       ▼
+  Build Sandbox
+       │
+       ▼
+  CodeQL database
+```
+
+Sandbox requirements:
+
+```text
+CPU limit
+RAM limit
+timeout
+restricted network
+no credentials
+isolated filesystem
+temporary writable workspace
+```
+
+Default:
+
+```yaml
+build:
+  sandbox: auto
+```
+
+If sandboxing isn't available:
+
+```text
+FAIL SAFE
+```
+
+Do not silently execute an untrusted build on the host.
+
+An explicit:
+
+```bash
+--allow-unsafe-build
+```
+
+may be provided for trusted internal repositories.
+
+---
+
+# 17. Why not sandbox Python?
+
+For a source-only Python CodeQL scan:
+
+```bash
+codeql database create ...
+```
+
+there is no need to execute the application's build.
+
+Therefore:
+
+```text
+Python source analysis
+→ no sandbox
+```
+
+If the project requires execution/build steps:
+
+```text
+build required
+→ sandbox
+```
+
+This keeps the architecture simpler.
+
+---
+
+# 18. SARIF parser
+
+Both engines produce SARIF.
+
+```text
+OpenGrep SARIF ──┐
+                 ├──→ SARIF Parser
+CodeQL SARIF ────┘
+                       │
+                       ▼
+                 Common Finding
+```
+
+---
+
+# 19. Internal finding schema
+
+```json
+{
+  "id": "uuid",
+  "scanner": "opengrep",
+  "rule_id": "python.sql.injection",
+  "language": "python",
+
+  "file": "app/users.py",
+  "line": 127,
+  "column": 12,
+
+  "scanner_title": "Potential SQL Injection",
+  "scanner_message": "User input reaches SQL query",
+  "scanner_severity": "WARNING",
+
+  "fingerprint": "sha256..."
+}
+```
+
+---
+
+# 20. Fingerprinting
+
+Generate:
+
+```text
+SHA256(
+    normalized_file_path +
+    rule_id +
+    line +
+    relevant_code_context
+)
+```
+
+This is for correlation.
+
+It is **not AI deduplication**.
+
+---
+
+# 21. Candidate grouping
+
+Before calling the AI, reduce unnecessary API calls.
+
+Group likely related findings using deterministic signals:
+
+```text
+same file
++
+nearby line
++
+same/similar CWE
++
+same sink
++
+similar fingerprint
+```
+
+Example:
+
+```text
+1,000 findings
+       ↓
+candidate grouping
+       ↓
+250 groups
+       ↓
+AI analysis
+```
+
+---
+
+# 22. AI analysis
+
+The AI receives:
+
+```json
+{
+  "finding_id": "abc123",
+  "scanner": "opengrep",
+  "language": "python",
+  "rule_id": "python.sql.injection",
+  "file": "app/users.py",
+  "line": 127,
+  "scanner_severity": "WARNING",
+  "scanner_message": "...",
+  "code_context": {
+    "before": "...",
+    "target": "...",
+    "after": "..."
+  }
+}
+```
+
+---
+
+# 23. AI responsibilities
+
+### Validation
+
+```text
+CONFIRMED
+LIKELY
+INSUFFICIENT_EVIDENCE
+FALSE_POSITIVE
+```
+
+### Deduplication
+
+Identify:
+
+```text
+same vulnerability
+different scanner
+different rule
+same underlying source/sink
+```
+
+### Canonicalization
+
+Example:
+
+```text
+"User input reaches SQL query"
+       ↓
+"SQL Injection"
+```
+
+### Better wording
+
+Produce a professional description based only on evidence.
+
+### Enrichment
+
+Where justified:
+
+```text
+CWE
+OWASP category
+attack surface
+exploitability
+impact
+remediation
+```
+
+---
+
+# 24. AI must not hallucinate
+
+Prompt requirements:
+
+```text
+Never invent code behavior.
+Never claim exploitation without evidence.
+Never invent a vulnerable data flow.
+Never invent a file or function.
+Never change scanner evidence.
+If evidence is insufficient, say so.
+```
+
+This is critical.
+
+---
+
+# 25. AI result schema
+
+```json
+{
+  "finding_id": "abc123",
+
+  "validation": {
+    "status": "CONFIRMED",
+    "confidence": 0.96,
+    "reason": "User-controlled request input reaches the SQL execution sink without parameterization."
+  },
+
+  "canonical": {
+    "title": "SQL Injection",
+    "category": "Injection",
+    "cwe": "CWE-89",
+    "owasp": "A03:2021-Injection"
+  },
+
+  "risk": {
+    "severity": "HIGH",
+    "exploitability": "HIGH",
+    "impact": "HIGH"
+  },
+
+  "description": "...",
+
+  "recommendation": "Use parameterized queries..."
+}
+```
+
+---
+
+# 26. Deduplication result
+
+Suppose:
+
+```text
+OpenGrep #101
+CodeQL #182
+OpenGrep #209
+```
+
+all represent the same vulnerability.
+
+AI returns:
+
+```json
+{
+  "canonical_finding_id": "F-001",
+  "duplicates": [
+    "101",
+    "182",
+    "209"
+  ]
+}
+```
+
+Final report contains one canonical finding.
+
+Raw evidence still contains all three.
+
+---
+
+# 27. Severity model
+
+Preserve:
+
+```text
+scanner_severity
+```
+
+and separately produce:
+
+```text
+ai_severity
+```
+
+Example:
+
+```json
+{
+  "scanner_severity": "WARNING",
+  "ai_severity": "HIGH",
+  "ai_confidence": 0.96
+}
+```
+
+Never overwrite the scanner's original severity.
+
+---
+
+# 28. AI failure behavior
+
+If AI fails:
+
+```text
+OpenGrep       SUCCESS
+CodeQL         SUCCESS
+AI             FAILED
+```
+
+iSAST must still generate:
+
+```text
+final.csv
+```
+
+with:
+
+```text
+ai_status=UNPROCESSED
+```
+
+AI must never cause raw findings to disappear.
+
+---
+
+# 29. Final report
+
+### `final.csv`
+
+Recommended columns:
+
+```text
+canonical_id
+title
+severity
+confidence
+language
+file
+line
+column
+category
+cwe
+owasp
+description
+recommendation
+exploitability
+impact
+scanner_count
+scanners
+```
+
+Example:
+
+```csv
+canonical_id,title,severity,confidence,language,file,line,cwe,description,recommendation,scanners
+F-001,SQL Injection,HIGH,0.96,python,app/users.py,127,CWE-89,"User-controlled input reaches a SQL execution sink without parameterization.","Use parameterized queries.","opengrep;codeql"
+```
+
+---
+
+# 30. Raw report
+
+Also retain:
+
+```text
+raw-findings.json
+```
+
+containing:
+
+```text
+scanner
+rule
+scanner severity
+scanner message
+file
+line
+fingerprint
+raw evidence
+AI result
+canonical ID
+```
+
+This is important for auditability.
+
+---
+
+# 31. Scan workspace
+
+```text
+/tmp/isast/<scan-id>/
+│
+├── metadata.json
+├── detection.json
+│
+├── raw/
+│   ├── opengrep.sarif
+│   └── codeql/
+│       ├── python.sarif
+│       ├── java.sarif
+│       └── javascript.sarif
+│
+├── normalized/
+│   └── findings.json
+│
+├── ai/
+│   ├── validation.json
+│   └── dedup.json
+│
+└── reports/
+    ├── final.csv
+    └── raw-findings.json
+```
+
+Delete automatically after successful scan unless:
+
+```bash
+--keep-workdir
+```
+
+---
+
+# 32. Complete scan flow
+
+```text
+START
+  │
+  ▼
+Load .env
+  │
+  ▼
+Validate CLI
+  │
+  ▼
+Check dependencies
+  │
+  ├── OpenGrep missing → install
+  └── CodeQL missing → install
+  │
+  ▼
+Validate source
+  │
+  ▼
+Detect languages
+  │
+  ▼
+Detect manifests
+  │
+  ▼
+Resolve build systems
+  │
+  ├─────────────────────┐
+  ▼                     ▼
+OpenGrep              CodeQL
+  │                     │
+  │              Build required?
+  │                 /       \
+  │               NO         YES
+  │               │           │
+  │               │       Sandbox
+  │               │           │
+  │               └─────┬─────┘
+  │                     ▼
+  │                 CodeQL DB
+  │                     │
+  │                     ▼
+  │                  Analyze
+  │                     │
+  └──────────┬──────────┘
+             ▼
+        Collect SARIF
+             │
+             ▼
+      Normalize findings
+             │
+             ▼
+       Generate fingerprint
+             │
+             ▼
+       Candidate grouping
+             │
+             ▼
+         AI analysis
+             │
+      ┌──────┼──────────┐
+      ▼      ▼          ▼
+   Validate Dedup     Rewrite
+      │      │          │
+      └──────┼──────────┘
+             ▼
+      Canonical findings
+             │
+      ┌──────┴─────────┐
+      ▼                ▼
+ final.csv      raw-findings.json
+      │
+      ▼
+     END
+```
+
+---
+
+# 33. Example complete execution
+
+```text
+$ python isast.py \
+    --source=/workspace/payment-api \
+    --report=final.csv
+
+iSAST v1.0
+================================================
+
+[1/8] Checking dependencies ................. OK
+      OpenGrep  x.x.x
+      CodeQL    x.x.x
+
+[2/8] Validating source ..................... OK
+
+[3/8] Detecting project ..................... OK
+      Python       18,420 LOC
+      Java         11,240 LOC
+      TypeScript    9,210 LOC
+
+[4/8] Running OpenGrep ...................... OK
+      137 findings
+
+[5/8] Running CodeQL ........................ OK
+      Python        42
+      Java          18
+      TypeScript     9
+
+[6/8] Normalizing findings .................. OK
+      Raw findings: 206
+      Candidate groups: 147
+
+[7/8] AI analysis ........................... OK
+      Validated:       119
+      False positive:   18
+      Deduplicated:     32
+      Canonical:       101
+
+[8/8] Writing reports ....................... OK
+
+      final.csv
+      raw-findings.json
+
+================================================
+Scan completed successfully.
+```
+
+---
+
+# 34. Example final result
+
+Raw:
+
+```text
+206 findings
+```
+
+After AI:
+
+```text
+119 validated
+18 false positive
+32 duplicate relationships
+101 canonical findings
+```
+
+The important distinction is that **206 remains the raw scanner evidence**.
+
+The final security report contains the **101 canonical findings**.
+
+---
+
+# 35. Security model
+
+iSAST must:
+
+* never use `shell=True` with repository-controlled input
+* use subprocess argument arrays
+* validate all paths
+* enforce process timeouts
+* enforce resource limits
+* sandbox project builds
+* avoid host credentials
+* avoid passing secrets into build environments
+* verify scanner downloads
+* pin scanner versions
+* restrict network during builds
+* sanitize report content
+* handle malicious repositories safely
+
+---
+
+# 36. CI/CD behavior
+
+Example:
+
+```bash
+python isast.py \
+    --source=. \
+    --report=final.csv \
+    --non-interactive
+```
+
+No interactive prompts.
+
+No:
+
+```text
+sudo password
+Press Y
+Enter API key
+```
+
+AI credentials come from:
+
+```text
+.env
+environment variables
+CI secret store
+```
+
+Never from command-line arguments.
+
+---
+
+# 37. Exit codes
+
+```text
+0 = complete
+1 = scanner/runtime failure
+2 = invalid CLI arguments
+3 = dependency installation failure
+4 = invalid source
+5 = partial scan
+```
+
+Finding severity should **not automatically determine the process exit code**.
+
+That decision belongs to the CI/CD or ThreatVault policy layer.
+
+---
+
+# 38. `requirements.txt`
+
+Keep iSAST dependencies small:
+
+```text
+python-dotenv
+requests
+PyYAML
+```
+
+Potentially:
+
+```text
+pydantic
+```
+
+for strict internal models.
+
+Avoid making the scanner depend on large AI SDKs if the requirement is simply OpenAI-compatible HTTP. A small HTTP client keeps provider compatibility much easier.
+
+---
+
+# 39. Recommended `.env.example`
+
+```env
+# iSAST
+ISAST_WORKDIR=/tmp/isast
+
+# Scanner versions
+OPENGREP_VERSION=<PINNED_VERSION>
+CODEQL_VERSION=<PINNED_VERSION>
+
+# AI
+AI_ENABLED=true
+AI_BASE_URL=https://api.openai.com/v1
+AI_API_KEY=
+AI_MODEL=gpt-5.6
+
+AI_TIMEOUT=120
+AI_MAX_RETRIES=3
+AI_TEMPERATURE=0
+AI_BATCH_SIZE=20
+AI_CONTEXT_LINES=30
+
+AI_VALIDATE=true
+AI_DEDUP=true
+AI_REWRITE=true
+AI_RISK_ANALYSIS=true
+```
+
+For Bifrost, for example:
+
+```env
+AI_BASE_URL=https://<bifrost-host>/v1
+AI_API_KEY=<KEY>
+AI_MODEL=<MODEL>
+```
+
+No code change required.
+
+---
+
+# 40. Final product boundary
+
+The most important architectural decision is:
+
+```text
+                    iSAST
+                      │
+        ┌─────────────┴─────────────┐
+        │                           │
+     Scanner                    AI Analyst
+        │                           │
+   OpenGrep                       Validate
+   CodeQL                         Dedup
+        │                         Normalize
+        │                          Rewrite
+        ▼                           Risk
+  Raw evidence                      │
+        │                           │
+        └─────────────┬─────────────┘
+                      ▼
+                 Final Report
+                      │
+                      ▼
+                 ThreatVault
+```
+
+**iSAST is deterministic scanning + orchestration. AI is the analysis layer.**
+
+That separation is particularly important for your ThreatVault integration: you can always prove **what OpenGrep/CodeQL originally reported**, while separately showing **what the AI decided about that evidence**.
+
+### Final user experience
+
+```bash
+python isast.py --source=/workspace/project --report=final.csv
+```
+
+Everything else—dependency installation, language detection, build detection, CodeQL database creation, OpenGrep execution, sandboxing, SARIF parsing, finding grouping, AI validation, deduplication, wording and CSV generation—is automatic.
+

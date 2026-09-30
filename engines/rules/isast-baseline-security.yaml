@@ -1,0 +1,295 @@
+rules:
+  # --- Python -----------------------------------------------------------
+  - id: isast.python.sqli
+    message: "User-controlled data reaches a SQL execution sink (string-built query)."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+    patterns:
+      - pattern-either:
+          - pattern: $CURSOR.execute($Q % ...)
+          - pattern: $CURSOR.execute($Q + $X)
+          - pattern: $CURSOR.execute(f"{$Q.$X}")
+          - pattern: $CURSOR.executemany($Q % ...)
+          - pattern: $CON.executescript($Q % ...)
+          - pattern: $X.execute(...)
+
+  - id: isast.python.command-injection
+    message: "User-controlled data flows into a shell command."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-78
+    pattern-either:
+      - pattern: os.system($CMD + $X)
+      - pattern: os.system($CMD % ...)
+      - pattern: os.system(f"...{$X}...")
+      - pattern: subprocess.run($CMD + $X, shell=True, ...)
+      - pattern: subprocess.run("... " + $X, shell=True, ...)
+      - pattern: subprocess.call(..., shell=True, ...)
+      - pattern: subprocess.Popen(..., shell=True, ...)
+      - pattern: os.popen(...)
+
+  - id: isast.python.path-traversal
+    message: "File access built from untrusted input may traverse outside the intended directory."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-22
+    pattern-either:
+      - pattern: open(... % ..., ...)
+      - pattern: open($BASE + $X, ...)
+      - pattern: open(os.path.join($BASE, $X), ...)
+
+  - id: isast.python.deserialization
+    message: "Deserializing untrusted data can execute arbitrary code."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: CWE-502
+    pattern-either:
+      - pattern: pickle.loads($X)
+      - pattern: pickle.load($X)
+      - pattern: yaml.load($X, ...)
+      - pattern: dill.loads($X)
+
+  - id: isast.python.ssrf
+    message: "URL built from untrusted input may allow server-side request forgery."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-918
+    pattern-either:
+      - pattern: requests.get(... % ...)
+      - pattern: requests.get($BASE + $X, ...)
+      - pattern: urllib.request.urlopen(... % ...)
+      - pattern: urllib.request.urlopen($BASE + $X)
+
+  - id: isast.python.weak-crypto
+    message: "Use of a broken or weak cryptographic primitive."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-327
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+      - pattern: $X.cipher(algorithms.$ALG(...), ...)
+
+  - id: isast.python.secrets-hardcoded
+    message: "Hardcoded credential in source."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-798
+    pattern-regex: '(?i)\b(password|secret|api_key|apikey|token)\b\s*=\s*["''][^"''\s]{8,}["'']'
+
+  - id: isast.python.eval
+    message: "eval() on external input can execute arbitrary code."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: CWE-95
+    pattern-either:
+      - pattern: eval($X)
+      - pattern: exec($X)
+
+  - id: isast.python.ftp-telnet-insecure-url
+    message: "Insecure protocol URL."
+    languages: [python]
+    severity: INFO
+    metadata:
+      cwe: CWE-319
+    pattern-regex: '"(ftp|telnet|http)://[^"]*"'
+
+  # --- JavaScript / TypeScript -----------------------------------------
+  - id: isast.js.sqli
+    message: "Possible SQL injection: dynamically built SQL executes."
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+    pattern-either:
+      - pattern: $DB.query($Q + $X, ...)
+      - pattern: $DB.query(`...${$X}...`, ...)
+      - pattern: $DB.query(... % ...)
+
+  - id: isast.js.command-injection
+    message: "Shell command contains user input."
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: CWE-78
+    pattern-either:
+      - pattern: $CHILD.exec($CMD + $X, ...)
+      - pattern: $CHILD.spawn($CMD + $X, ...)
+      - pattern: $EXEC($CMD + $X)
+
+  - id: isast.js.code-injection
+    message: "eval() may run attacker-controlled code."
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      cwe: CWE-95
+    pattern-either:
+      - pattern: eval($X)
+      - pattern: new Function($X, ...)
+
+  - id: isast.js.path-traversal
+    message: "File path built from untrusted input."
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      cwe: CWE-22
+    pattern-either:
+      - pattern: $FS.readFile($BASE + $X, ...)
+      - pattern: path.join($BASE, $X)
+
+  - id: isast.js.weak-crypto
+    message: "Weak hash or cipher primitive."
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      cwe: CWE-327
+    pattern-either:
+      - pattern: crypto.createHash("md5", ...)
+      - pattern: crypto.createHash("sha1", ...)
+      - pattern: crypto.createCipher($ALG, ...)
+
+  - id: isast.js.secrets-hardcoded
+    message: "Hardcoded credential in source."
+    languages: [javascript, typescript]
+    severity: WARNING
+    metadata:
+      cwe: CWE-798
+    pattern-regex: '(?i)["''](AWS|aws)?_?(ACCESS_?KEY|SECRET|API_?KEY|TOKEN)["'']?\s*[:=]\s*["''][A-Za-z0-9/=\+]{10,}["'']'
+
+  # --- Java -------------------------------------------------------------
+  - id: isast.java.sqli
+    message: "Dynamically built SQL executed via concat/Statement."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+    pattern-either:
+      - pattern: $STMT.executeQuery($Q + $X)
+      - pattern: $STMT.executeQuery(String.format($Q, ...))
+      - pattern: new $STMT_TYPE($Q + $X)
+
+  - id: isast.java.deserialization
+    message: "Deserialization of untrusted data."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      cwe: CWE-502
+    pattern-either:
+      - pattern: (ObjectInputStream $IN).readObject(...)
+      - pattern: new XMLDecoder($IN)
+
+  - id: isast.java.weak-crypto
+    message: "Weak MessageDigest primitive."
+    languages: [java]
+    severity: WARNING
+    metadata:
+      cwe: CWE-327
+    pattern-either:
+      - pattern: MessageDigest.getInstance("MD5")
+      - pattern: MessageDigest.getInstance("SHA-1")
+
+  # --- Go ---------------------------------------------------------------
+  - id: isast.go.sqli
+    message: "Dynamically composed SQL query."
+    languages: [go]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+    pattern-either:
+      - pattern: $DB.Query($Q + $X)
+      - pattern: $DB.Exec($Q + $X)
+      - pattern: fmt.Sprintf("SELECT " + "...%s...", ...)
+
+  - id: isast.go.command-injection
+    message: "Shell command built from variables."
+    languages: [go]
+    severity: ERROR
+    metadata:
+      cwe: CWE-78
+    pattern-either:
+      - pattern: exec.Command("sh", "-c", $X)
+      - pattern: exec.Command($BASE + $X)
+
+  - id: isast.go.weak-crypto
+    message: "Weak hash primitive."
+    languages: [go]
+    severity: WARNING
+    metadata:
+      cwe: CWE-327
+    pattern-either:
+      - pattern: md5.New(...)
+      - pattern: sha1.New(...)
+
+  # --- PHP ---------------------------------------------------------------
+  - id: isast.php.sqli
+    message: "String-built SQL passed to query/mysqli."
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+    pattern-either:
+      - pattern: $DB->query($Q . $X)
+      - pattern: mysqli_query($CON, $Q . $X)
+      - pattern: $DB->query("... " . $X)
+
+  - id: isast.php.command-injection
+    message: "Shell execution with composed input."
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: CWE-78
+    pattern-either:
+      - pattern: shell_exec($CMD . $X)
+      - pattern: system($CMD . $X)
+      - pattern: exec($CMD . $X)
+
+  # --- Ruby ---------------------------------------------------------------
+  - id: isast.ruby.sqli
+    message: "Dynamically built SQL."
+    languages: [ruby]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+    pattern-either:
+      - pattern: $DB.execute($Q + $X)
+      - pattern: $DB.where($Q)
+
+  - id: isast.ruby.command-injection
+    message: "Shell command with interpolated input."
+    languages: [ruby]
+    severity: ERROR
+    metadata:
+      cwe: CWE-78
+    pattern-either:
+      - pattern: system("..." + $X)
+      - pattern: "`#{$X}`"
+
+  # --- C# ----------------------------------------------------------------
+  - id: isast.csharp.sqli
+    message: "CommandText built via concatenation."
+    languages: [csharp]
+    severity: ERROR
+    metadata:
+      cwe: CWE-89
+    pattern-either:
+      - pattern: $CMD.CommandText = $Q + $X
+      - pattern: $CMD.CommandText = string.Format($Q, ...)
+
+  - id: isast.csharp.weak-crypto
+    message: "Weak hash primitive."
+    languages: [csharp]
+    severity: WARNING
+    metadata:
+      cwe: CWE-327
+    pattern-either:
+      - pattern: MD5.Create(...)
+      - pattern: SHA1.Create(...)

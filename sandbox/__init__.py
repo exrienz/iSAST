@@ -1,0 +1,1 @@
+"""Build sandbox: isolate project-controlled build activity."""

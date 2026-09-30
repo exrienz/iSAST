@@ -1,0 +1,19 @@
+# iSAST optional YAML config (pass with --config PATH).
+# .env values always take priority; yaml fills gaps only.
+isast:
+  workdir: /tmp/isast
+
+ai:
+  enabled: true
+  timeout: 120
+  max_retries: 3
+  temperature: 0
+  batch_size: 20
+  context_lines: 30
+  validate: true
+  dedup: true
+  rewrite: true
+  risk_analysis: true
+
+build:
+  sandbox: auto

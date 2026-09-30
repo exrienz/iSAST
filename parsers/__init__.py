@@ -1,0 +1,1 @@
+"""SARIF parsing into the common finding model."""
