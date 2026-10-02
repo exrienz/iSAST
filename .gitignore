@@ -18,3 +18,9 @@ final.csv
 # OS / editor noise
 .DS_Store
 .kilo/
+# Report outputs (scan results, ThreatVault exports) — stay local only
+/*.csv
+/*.xlsx
+
+# Retest scratch
+/retest/tmp/

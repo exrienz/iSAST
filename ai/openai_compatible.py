@@ -1,9 +1,9 @@
 """OpenAI-compatible chat-completions client implementation.
 
-Speaks plain HTTP POST {AI_BASE_URL}/chat/completions with
+Speaks plain HTTP POST {LLM_PROVIDER}/chat/completions with
 Authorization: Bearer bearer-token (blueprint section 10), so any
 gateway (OpenAI, Bifrost, LiteLLM, vLLM, Ollama-compatible) works with
-only AI_BASE_URL / AI_API_KEY / AI_MODEL changes — no code change.
+only LLM_PROVIDER / LLM_KEY / LLM_MODEL changes — no code change.
 """
 
 from __future__ import annotations

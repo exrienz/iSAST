@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- Env var rename: `AI_BASE_URL` → `LLM_PROVIDER`, `AI_API_KEY` → `LLM_KEY`,
+  `AI_MODEL` → `LLM_MODEL`. Update existing `.env` files; no code change
+  required otherwise.
+- `tv2csv.py` (ThreatVault export → VAPT CSV): reads `THREATVAULT_BASEURL`
+  and `THREATVAULT_KEY` from `.env` (script dir, then cwd); `--url`/`--token`
+  flags still take precedence.
+- Retest mode: `python isast.py --source=X --rescan_report=old.csv
+  --output=clean.csv --retest` re-verifies a previous report against the
+  current source without running engines or AI. Rows whose flagged code is
+  still present are written unchanged; code-gone/unreadable/unparseable
+  rows are removed. New `read_report`/`write_report` in `output/csv.py`; the
+  matching is whitespace-insensitive with a ±10-line drift window and a
+  specificity-gated whole-file fallback (`retest/`).
+
 ## 1.0.0 — 2026-09-30
 
 Initial release.

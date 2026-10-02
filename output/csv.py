@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from core.models import CanonicalFinding
 from core.textclamp import clamp_text
@@ -21,6 +21,10 @@ from core.textclamp import clamp_text
 # Excel, LibreOffice and Google Sheets silently truncate/break cells beyond
 # 32,767 characters; keep every cell under it no matter what the source is.
 MAX_CELL_CHARS = 32000
+
+
+class ReportReadError(Exception):
+    """A report CSV could not be read back in iSAST's own format."""
 
 
 def sanitize_cell(value: Optional[str]) -> str:
@@ -53,3 +57,51 @@ class CSVWriter:
                     row[host_idx] = sanitize_cell(host)
                 writer.writerow(row)
         return target
+
+
+def write_report(target: Path, rows: List[List[str]], header: Optional[List[str]] = None) -> Path:
+    """Write raw rows in the final.csv format, preserving the given row order.
+
+    Used by retest, where kept rows must survive unchanged (CSVWriter always
+    sorts by canonical_id and derives rows from findings — neither applies
+    here). Cells still pass through sanitize_cell; on cells produced by
+    csv.writer itself that is the identity, so the output is byte-identical
+    while guaranteeing the retest output matches the report schema. The write
+    is atomic (temp file + replace) so an interrupted write never truncates
+    an existing report — retest may legitimately write over its own input.
+    """
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(target.name + ".tmp")
+    try:
+        with tmp.open("w", encoding="utf-8-sig", newline="") as handle:
+            writer = csv.writer(handle, quoting=csv.QUOTE_ALL)
+            writer.writerow(header if header is not None else CanonicalFinding.CSV_COLUMNS)
+            for row in rows:
+                writer.writerow([sanitize_cell(cell) for cell in row])
+        tmp.replace(target)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return target
+
+
+def read_report(path: Path) -> Tuple[List[str], List[List[str]]]:
+    """Read a report CSV exactly as CSVWriter produced it: header + data rows.
+
+    Cells are returned verbatim (no re-sanitizing) so verification and
+    byte-for-byte row preservation see exactly what the writer emitted.
+    """
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as handle:
+            reader = csv.reader(handle)
+            try:
+                header = next(reader)
+            except StopIteration as exc:
+                raise ReportReadError(f"{path}: empty report (no header row)") from exc
+            rows = [row for row in reader]
+    except (OSError, UnicodeDecodeError, csv.Error) as exc:
+        raise ReportReadError(f"{path}: {exc}") from exc
+    if header != CanonicalFinding.CSV_COLUMNS:
+        raise ReportReadError(
+            f"{path}: unexpected header (expected {CanonicalFinding.CSV_COLUMNS})"
+        )
+    return header, rows

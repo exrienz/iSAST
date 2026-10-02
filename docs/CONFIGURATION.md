@@ -28,12 +28,15 @@ installation.
 
 ### AI (OpenAI-compatible)
 
+> Renamed in Unreleased: `AI_BASE_URL` → `LLM_PROVIDER`, `AI_API_KEY` →
+> `LLM_KEY`, `AI_MODEL` → `LLM_MODEL`. Update existing `.env` files.
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AI_ENABLED` | `true` | Master switch for the AI layer |
-| `AI_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible endpoint (Bifrost, LiteLLM, vLLM, Ollama gateways work unchanged) |
-| `AI_API_KEY` | — | API key for the gateway |
-| `AI_MODEL` | — | Model name the gateway expects |
+| `LLM_PROVIDER` | `https://api.openai.com/v1` | OpenAI-compatible endpoint (Bifrost, LiteLLM, vLLM, Ollama gateways work unchanged) |
+| `LLM_KEY` | — | API key for the gateway |
+| `LLM_MODEL` | — | Model name the gateway expects |
 | `AI_TIMEOUT` | `120` | Per-request timeout (seconds) |
 | `AI_MAX_RETRIES` | `3` | Retry budget per request |
 | `AI_MAX_TOKENS` | `0` | 0 = gateway default; set explicitly to defend against truncated JSON replies |
@@ -76,12 +79,19 @@ ai:
   rewrite: true
   risk_analysis: true
 
+llm:
+  provider: https://api.openai.com/v1
+  model: gpt-5.6
+
 build:
   sandbox: auto
 ```
 
-Flat keys (`ai_model:`) and one nested level (`ai: model:`) are both accepted;
-nested keys are joined (`AI_MODEL`). YAML cannot override `.env` values.
+Flat keys (`llm_model:`) and one nested level (`llm: model:`) are both
+accepted; nested keys are joined (`llm` + `model` → `LLM_MODEL`). The `ai:`
+section maps to the remaining `AI_*` behavior toggles the same way. YAML
+cannot override `.env` values. (Do not put the API key in YAML — keep it in
+`.env`.)
 
 ## Installation layout
 
@@ -102,9 +112,9 @@ verifies binaries, versions, Python and AI connectivity without scanning.
 Only three values change per provider:
 
 ```env
-AI_BASE_URL=https://api.openai.com/v1
-AI_API_KEY=sk-...
-AI_MODEL=gpt-5.6
+LLM_PROVIDER=https://api.openai.com/v1
+LLM_KEY=sk-...
+LLM_MODEL=gpt-5.6
 ```
 
 Any OpenAI-compatible gateway (`POST {BASE_URL}/chat/completions`,

@@ -15,8 +15,13 @@ ThreatVault/CodXprt ingestion. Spec: `blueprint.txt` (authoritative).
 python isast.py --source=/path --report=final.csv   # primary UX
 python isast.py --doctor                            # diagnostics
 python isast.py --update --non-interactive          # install engines
+python isast.py --source=/path --rescan_report=old.csv --output=clean.csv --retest  # retest mode
 python -m pytest tests/ -q                          # test suite
 ```
+
+Retest mode reads a previous report, verifies each row's flagged code still
+exists under `--source` (no engines, no AI), and writes the cleaned report
+to `--output`; kept rows are never modified.
 
 Exit codes per blueprint §37: 0 complete, 1 runtime, 2 bad args, 3 deps,
 4 bad source, 5 partial scan.
@@ -28,6 +33,9 @@ Exit codes per blueprint §37: 0 complete, 1 runtime, 2 bad args, 3 deps,
   contains every OpenGrep/CodeQL finding with its AI verdict.
 - **AI fail-open**: any AI failure leaves findings `UNPROCESSED` and the scan
   still emits `final.csv` (exit 5).
+- **Retest never modifies kept rows and never runs engines**: it only
+  re-verifies existing evidence against the source and drops rows whose
+  code is gone; it must not create, reorder or reword findings.
 - **No shell strings**: all subprocess calls take argv arrays and timeouts
   (`core/executor.py`). Never pass repository-controlled input through a shell.
 - **Scanner severities are never overwritten** — `scanner_severity` is

@@ -34,7 +34,7 @@ No manual language selection. No manual OpenGrep configuration. No manual CodeQL
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env            # set AI_BASE_URL / AI_API_KEY / AI_MODEL
+cp .env.example .env            # set LLM_PROVIDER / LLM_KEY / LLM_MODEL
 python isast.py --update        # install the pinned engines into ~/.isast/
 python isast.py --doctor        # verify engines, Python and AI connectivity
 
@@ -45,7 +45,36 @@ Add a repository locator so reports carry their origin:
 
 ```bash
 python isast.py --source=/path/to/repo --report=final.csv \
-  --repo=paynet-login/applications/sso-v3:master
+  --repo=org/project/app:main
+```
+
+---
+
+## Sample commands
+
+Scan a source tree and write the findings report:
+
+```bash
+python3 isast.py --source=code/ --report=xxx.csv
+```
+
+Re-verify a previous report against the current source (`--retest`):
+flagged code that no longer exists is dropped from `--output`; kept rows are
+written unchanged, and no engines or AI calls run:
+
+```bash
+python3 isast.py --source=code/ --rescan_report=cccc.csv --output=xxxx.csv --retest
+```
+
+Download findings from ThreatVault and convert to the VAPT CSV (`tv2csv.py`,
+requires `pip install polars`; base URL and token come from `.env`):
+
+```bash
+python3 tv2csv.py \
+  --pluginid=<plugin-uuid> \
+  --productid=<product-uuid> \
+  --label=<label e.g. projectpulse/v2:master> \
+  --output=cccc.csv
 ```
 
 ---
@@ -59,6 +88,7 @@ python isast.py --source=/path/to/repo --report=final.csv \
 | `--threads 8 --timeout 3600` | Advanced scan controls |
 | `python isast.py --resume` | Resume the most recent interrupted scan |
 | `python isast.py --resume <SCAN_ID>` | Resume a specific workspace |
+| `python isast.py --source=X --rescan_report=old.csv --output=clean.csv --retest` | Re-verify a previous report; rows whose code is gone are dropped |
 | `--doctor` | Diagnose engines, Python version and AI connectivity |
 | `--update` | Install/refresh pinned engine versions |
 | `--version` | Print version |
@@ -66,6 +96,7 @@ python isast.py --source=/path/to/repo --report=final.csv \
 | `--non-interactive` | CI/CD mode: never prompt |
 | `--keep-workdir` | Keep the per-scan workspace for audit |
 | `--allow-unsafe-build` | Trusted repos only: run required builds on host without sandbox |
+| `python tv2csv.py --pluginid=… --productid=… --label=… --output=x.csv` | Fetch ThreatVault findings export → VAPT CSV (uses `THREATVAULT_BASEURL` / `THREATVAULT_KEY` from `.env`) |
 
 Exit codes: `0` complete, `1` runtime failure, `2` invalid arguments,
 `3` dependency installation failure, `4` invalid source, `5` partial scan.
@@ -86,6 +117,34 @@ Each scan writes two artifacts next to `--report`:
 
 Cell sizes are clamped and quoting is explicit, so the CSV always opens
 cleanly in Excel/LibreOffice/Google Sheets.
+
+---
+
+## ThreatVault export
+
+`tv2csv.py` fetches findings from a ThreatVault/DefectDojo-style export API
+and writes them in the same VAPT CSV schema (9 quoted columns, CRLF):
+
+```bash
+pip install polars    # tv2csv-only dependency, not needed by iSAST itself
+```
+
+Full runnable example: see [Sample commands](#sample-commands). Flags:
+`--pluginid`, `--productid`, `--label`, `--output` (all required).
+
+Optional flags: `--status=NEW,OPEN` (default), `--url=<base url>`,
+`--token=<api token>`.
+
+The base URL and API token resolve from `.env` (script directory first, then
+cwd) so they never appear on a command line:
+
+```env
+THREATVAULT_BASEURL=http://localhost:8000
+THREATVAULT_KEY=<token>
+```
+
+Resolution order: `--token` flag > `THREATVAULT_KEY` env > `.env`; `--url`
+flag > `THREATVAULT_BASEURL` env > `.env` > `http://localhost:8000`.
 
 ---
 
@@ -128,7 +187,7 @@ tests/       pytest suites
 ## Configuration
 
 `.env` (see `.env.example`) — secrets and AI settings, **never CLI arguments**.
-Only `AI_BASE_URL`, `AI_API_KEY` and `AI_MODEL` change per provider — no code
+Only `LLM_PROVIDER`, `LLM_KEY` and `LLM_MODEL` change per provider — no code
 change required (OpenAI-compatible `POST {BASE_URL}/chat/completions`).
 Full variable reference: [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md).
 
@@ -169,7 +228,7 @@ skipped, not silently run on the host.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests/ -q          # full unit suite (136 tests)
+python -m pytest tests/ -q          # full unit suite (191 tests)
 python isast.py --doctor            # installation check
 ```
 

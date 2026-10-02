@@ -116,10 +116,10 @@ def test_csv_writer_repo_fills_host_column(tmp_path):
     (cve/port/vpr_score) stay blank."""
     finding = _confirmed_finding(canonical_id="F-002", title="XSS")
     target = tmp_path / "final.csv"
-    CSVWriter().write(target, [finding], host="paynet-login/applications/sso-v3:master")
+    CSVWriter().write(target, [finding], host="org/project/app:main")
     with target.open(encoding="utf-8-sig") as handle:
         rows = list(csv.DictReader(handle))
-    assert rows[0]["host"] == "paynet-login/applications/sso-v3:master"
+    assert rows[0]["host"] == "org/project/app:main"
     assert rows[0]["cve"] == ""
     assert rows[0]["port"] == ""
     assert rows[0]["vpr_score"] == ""
@@ -128,7 +128,7 @@ def test_csv_writer_repo_fills_host_column(tmp_path):
 def test_repo_pattern_validation():
     from isast import REPO_PATTERN
 
-    assert REPO_PATTERN.match("paynet-login/applications/sso-v3:master")
+    assert REPO_PATTERN.match("org/project/app:main")
     assert REPO_PATTERN.match("apps/sso-v3")
     assert REPO_PATTERN.match("sso-v3:release-2.1")
     assert REPO_PATTERN.match("apps/my_app:v1.0")  # dot in ref, underscore in path
@@ -190,10 +190,10 @@ def test_workspace_layout(tmp_path):
 
 
 def test_settings_load_env(tmp_path, monkeypatch):
-    for key in ("AI_MODEL", "AI_TIMEOUT"):
+    for key in ("LLM_MODEL", "AI_TIMEOUT"):
         monkeypatch.delenv(key, raising=False)
     env_file = tmp_path / ".env"
-    env_file.write_text("AI_MODEL=test-model\nAI_TIMEOUT=5\n")
+    env_file.write_text("LLM_MODEL=test-model\nAI_TIMEOUT=5\n")
     settings = load_settings(tmp_path)
     assert settings.ai_model == "test-model"
     assert settings.ai_timeout == 5

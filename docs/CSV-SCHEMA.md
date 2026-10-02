@@ -10,7 +10,7 @@ Encoding is UTF-8 **with BOM** (`utf-8-sig`), every field is quoted
 |---|--------|----------|
 | 1 | `cve` | Empty (reserved for future CVE mapping) |
 | 2 | `risk` | Final severity: `CRITICAL` / `HIGH` / `MEDIUM` / `LOW` |
-| 3 | `host` | Repository locator from `--repo` (e.g. `paynet-login/applications/sso-v3:master`); blank when `--repo` is not provided |
+| 3 | `host` | Repository locator from `--repo` (e.g. `org/project/app:main`); blank when `--repo` is not provided |
 | 4 | `port` | Empty (reserved) |
 | 5 | `name` | Finding title (AI title when present, else scanner title) |
 | 6 | `description` | Professional description grounded only in the shown evidence |
@@ -65,6 +65,17 @@ Every cell passes through the writer's sanitizer (`output/csv.py`):
 Raw scanner evidence is never altered by any of this — `raw-findings.json`
 and the workspace `raw/` SARIF files always hold the complete scanner output.
 
+## Retest against this schema
+
+`--retest` reads a report of exactly this schema back (`output/csv.py:
+read_report`) and uses the `Affected File:` / `Affected Line:` header plus
+the snippet inside the `evidence` cell as its only cross-run key — there is
+no stable finding id in the CSV (finding ids are per-run UUIDs and
+fingerprints live in `raw-findings.json` only). Rows whose flagged code
+still matches the current source under `--source` are written out
+unchanged; gone/unreadable/unparseable rows are removed (see
+`docs/CLI-REFERENCE.md`, Retest mode).
+
 ## Companions
 
 - **`raw-findings.json`** — every raw finding, with `ai_status`,
@@ -79,7 +90,7 @@ Pass `--repo=project/path[:ref]` to stamp the repository locator into the
 
 ```bash
 python isast.py --source=. --report=final.csv \
-  --repo=paynet-login/applications/sso-v3:master
+  --repo=org/project/app:main
 ```
 
 Validation: `project/path[:ref]`, word characters plus `. - _ / :`.

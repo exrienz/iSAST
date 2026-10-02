@@ -77,7 +77,7 @@ class ScanConfig:
 
     source: Path
     report: Path
-    # Repository locator (e.g. paynet-login/applications/sso-v3:master) written
+    # Repository locator (e.g. org/project/app:main) written
     # into the CSV host column; None/empty leaves host blank.
     repo: Optional[str] = None
     threads: int = 4

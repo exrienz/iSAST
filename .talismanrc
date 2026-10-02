@@ -1,115 +1,135 @@
 # Talisman allowlist — all entries are LOW-severity word-match false positives
 # (ordinary source/docs mentioning the word "key", ".env.example filename
 # pattern, etc). Real secrets live in .env, which is git-ignored.
-# Regenerate with: ~/.talisman/bin/talisman_darwin_arm64 --checksum=<file>
+# Suggested checksums come from the talisman pre-commit hook output.
 version: "1.0"
 fileignoreconfig:
-  - filename: .env.example
-    checksum: 5a4e87e1d65c42c3ba40ba823a62e39d1c8becf5cb686452c0f0fd52ac139b8b
-    ignoreDetectors:
-      - FilenameDetector
-      - FileContentDetector
-  - filename: CLAUDE.md
-    checksum: c6637026dafaa2f10225555622e1b13648c44458ecb01676b5ce793236f00991
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: README.md
-    checksum: d70e214b0cd9010e6a4637cc741a140f6134640f2efafd1ff448da98a3b126c5
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: ai/analyzer.py
-    checksum: 3909040be815c3ecd77c81697df407e08df31cdb56387281140a444ab813774b
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: ai/checkpoint.py
-    checksum: e79844d8fe5e687b5d10d1903164d723e0ee31cedb0be91f712ab5eff4b57d7c
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: ai/deduplicator.py
-    checksum: e375da870faff832968b1ebf82c8f466437e21bcc12fe0748a8c7ad81f550157
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: ai/validator.py
-    checksum: 09f24f6ceda374ffa81dde7ba1c166e7f368281ddd6e9dba0d67763bfbce3fbf
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: blueprint.txt
-    checksum: 04982f1ee82fb999e7cf608ca2ac6df9085514e533d7332f037773a633dec95f
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: core/models.py
-    checksum: 2d82d71743cb90161f79b055beca4a0a1358096b335d190f0f01176a99df3f9f
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: core/scanner.py
-    checksum: acf455c9da620514bd78ca1608812765099100a6e24585770d42905cb2971640
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: core/settings.py
-    checksum: 33b7f9ce749d8cef71dc27df9f037fba190c4471ffefa5b49a4c50e719fb7c03
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: core/textclamp.py
-    checksum: 9149fe93b61a2f1e16e65cc182f46afb433160b1a50f1a82fe1c461c3c0e0540
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: detection/language.py
-    checksum: b83dcece3418c444e2c5ac49379dca6e54973f65963e7b236f34c4deb554d065
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: detection/manifest.py
-    checksum: f8c23ac31976f8b3057b2b4988a56a1b3e7de3e300773008f0c2a3eee1cb8da3
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: docs/CONFIGURATION.md
-    checksum: 19a314fccad1c77055ced2ca55c99b4f62c724d4ddebf2682e2eb0f50e2d19f0
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: docs/CSV-SCHEMA.md
-    checksum: 69d5c61458b394d0446f07cc4c1ca6c2612da55b6ef0138b64dc7ee9a9a21aa5
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: engines/rules/isast-baseline-security.yaml
-    checksum: 01b9b01dd6ba38aab920fd9c85644513326203d69dbaf6d65ff9683e902ae1d3
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: findings/grouping.py
-    checksum: 020c37f4b3103906d3583dbfcb7bea885fbf401c594c0315e8fd615121ff97ad
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: isast.py
-    checksum: 6575b8eb0368a00fcdc6ba92b31a5c005ff6636b25d0ded107032d29ef8f4e1e
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: output/csv.py
-    checksum: d019312b4a014c455969a24ceeadfb368f16409b2db0fee0cb6e2d3d57974740
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: sandbox/executor.py
-    checksum: 6ea34af1bab95ffc9e9bf442fcabbfb47fd6ae1b991cfe69f233caa7922c1560
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: tests/test_ai.py
-    checksum: 2ac98e67c02184da4f54aea29ca6862af67b30e2fb0a7315df1270619b1a7aaf
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: tests/test_ai_progress.py
-    checksum: 3564383876b8400d97f3f7c587db9deba8d13cf62fc52a3e214acbabd0235d74
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: tests/test_checkpoint.py
-    checksum: 8372e81f72697641b4f5b41c8b8ef9bc4818742a039b32f5dbd5601b740504e0
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: tests/test_cli.py
-    checksum: 328accee52754400d4874d66c7b364f13290c202b4786c06b49aa5bca211b374
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: tests/test_error_report.py
-    checksum: 93557a51245f8a6a8c34b95fc12d2bd79e4717fb66d45befc918cc45da52c348
-    ignoreDetectors:
-      - FileContentDetector
-  - filename: tests/test_fingerprint.py
-    checksum: 87271ddceb7097346c4e5e9f83f41310cb68870da68689ca7dfc91bf8c4ffb98
-    ignoreDetectors:
-      - FileContentDetector
+- filename: .env.example
+  checksum: 54982616ff5b38622a0adab5747e5907a879b23e25dd40af92bcc10b263462c8
+  ignoreDetectors:
+    - FilenameDetector
+    - FileContentDetector
+- filename: CHANGELOG.md
+  checksum: b871b2d139c75a916591be02292ac2e930b5425d2b7b94865f2ab6f7a0e19a65
+  ignoreDetectors:
+    - FileContentDetector
+- filename: CLAUDE.md
+  checksum: c6637026dafaa2f10225555622e1b13648c44458ecb01676b5ce793236f00991
+  ignoreDetectors:
+    - FileContentDetector
+- filename: README.md
+  checksum: d70e214b0cd9010e6a4637cc741a140f6134640f2efafd1ff448da98a3b126c5
+  ignoreDetectors:
+    - FileContentDetector
+- filename: ai/analyzer.py
+  checksum: 3909040be815c3ecd77c81697df407e08df31cdb56387281140a444ab813774b
+  ignoreDetectors:
+    - FileContentDetector
+- filename: ai/checkpoint.py
+  checksum: e79844d8fe5e687b5d10d1903164d723e0ee31cedb0be91f712ab5eff4b57d7c
+  ignoreDetectors:
+    - FileContentDetector
+- filename: ai/deduplicator.py
+  checksum: e375da870faff832968b1ebf82c8f466437e21bcc12fe0748a8c7ad81f550157
+  ignoreDetectors:
+    - FileContentDetector
+- filename: ai/validator.py
+  checksum: 09f24f6ceda374ffa81dde7ba1c166e7f368281ddd6e9dba0d67763bfbce3fbf
+  ignoreDetectors:
+    - FileContentDetector
+- filename: blueprint.txt
+  checksum: 42d6e6dad079cd61616b75e296675254fc97bca051a16e3fbe8566e1478df235
+  ignoreDetectors:
+    - FileContentDetector
+- filename: config.example.yaml
+  checksum: 9aff710138ea29a5801b6695dc34d05815777ea5ed4f7598ede1151ca65b1889
+  ignoreDetectors:
+    - FileContentDetector
+- filename: core/models.py
+  checksum: 676efb53139954eaac68df23aa1ec57543ecf42cb90937f6edc3a8cd3bfc14af
+  ignoreDetectors:
+    - FileContentDetector
+- filename: core/scanner.py
+  checksum: 1ed8d0fa31de3a269c433384c9bb3ad8252f6aceda2efbdbb3c87ca2baef8221
+  ignoreDetectors:
+    - FileContentDetector
+- filename: core/settings.py
+  checksum: 000ca1dd631162faf28cad60804bcbd84e708e51d33e72a690ecd5ae1bd83436
+  ignoreDetectors:
+    - FileContentDetector
+- filename: core/textclamp.py
+  checksum: 9149fe93b61a2f1e16e65cc182f46afb433160b1a50f1a82fe1c461c3c0e0540
+  ignoreDetectors:
+    - FileContentDetector
+- filename: detection/language.py
+  checksum: b83dcece3418c444e2c5ac49379dca6e54973f65963e7b236f34c4deb554d065
+  ignoreDetectors:
+    - FileContentDetector
+- filename: detection/manifest.py
+  checksum: f8c23ac31976f8b3057b2b4988a56a1b3e7de3e300773008f0c2a3eee1cb8da3
+  ignoreDetectors:
+    - FileContentDetector
+- filename: docs/CLI-REFERENCE.md
+  checksum: 76e2d3ab7b63926e560b42ad00c991426c62b358d6afa021f00fda9c18f04dc8
+  ignoreDetectors:
+    - FileContentDetector
+- filename: docs/CONFIGURATION.md
+  checksum: 6ab3a983705a8f152488abd03797ab7b09d0ad477e087d4aa282d306e72e0b9c
+  ignoreDetectors:
+    - FileContentDetector
+- filename: docs/CSV-SCHEMA.md
+  checksum: 69d5c61458b394d0446f07cc4c1ca6c2612da55b6ef0138b64dc7ee9a9a21aa5
+  ignoreDetectors:
+    - FileContentDetector
+- filename: engines/rules/isast-baseline-security.yaml
+  checksum: 01b9b01dd6ba38aab920fd9c85644513326203d69dbaf6d65ff9683e902ae1d3
+  ignoreDetectors:
+    - FileContentDetector
+- filename: findings/grouping.py
+  checksum: 020c37f4b3103906d3583dbfcb7bea885fbf401c594c0315e8fd615121ff97ad
+  ignoreDetectors:
+    - FileContentDetector
+- filename: isast.py
+  checksum: c92a7e0e59fa01a0c49bcf38624b4c1d87c6fe79865e335fa53f0a07bcbe58c4
+  ignoreDetectors:
+    - FileContentDetector
+- filename: output/csv.py
+  checksum: d019312b4a014c455969a24ceeadfb368f16409b2db0fee0cb6e2d3d57974740
+  ignoreDetectors:
+    - FileContentDetector
+- filename: sandbox/executor.py
+  checksum: 6ea34af1bab95ffc9e9bf442fcabbfb47fd6ae1b991cfe69f233caa7922c1560
+  ignoreDetectors:
+    - FileContentDetector
+- filename: tests/test_ai.py
+  checksum: 2ac98e67c02184da4f54aea29ca6862af67b30e2fb0a7315df1270619b1a7aaf
+  ignoreDetectors:
+    - FileContentDetector
+- filename: tests/test_ai_progress.py
+  checksum: 3564383876b8400d97f3f7c587db9deba8d13cf62fc52a3e214acbabd0235d74
+  ignoreDetectors:
+    - FileContentDetector
+- filename: tests/test_checkpoint.py
+  checksum: 8372e81f72697641b4f5b41c8b8ef9bc4818742a039b32f5dbd5601b740504e0
+  ignoreDetectors:
+    - FileContentDetector
+- filename: tests/test_cli.py
+  checksum: d0ee4bd0413fe161694264de2589b6a73b43487fe45687ff341965da161351cb
+  ignoreDetectors:
+    - FileContentDetector
+- filename: tests/test_error_report.py
+  checksum: 93557a51245f8a6a8c34b95fc12d2bd79e4717fb66d45befc918cc45da52c348
+  ignoreDetectors:
+    - FileContentDetector
+- filename: tests/test_fingerprint.py
+  checksum: 87271ddceb7097346c4e5e9f83f41310cb68870da68689ca7dfc91bf8c4ffb98
+  ignoreDetectors:
+    - FileContentDetector
+- filename: tests/test_retest.py
+  checksum: fb6af3683a111b98701b2ac8bb82b97f549811ea22d301b050f4d125768b866c
+  ignoreDetectors:
+    - FileContentDetector
+- filename: tv2csv.py
+  checksum: 3cc128050971551c9d442568e29cd0b610615f032d28757f450b23f1c0393bde
+  ignoreDetectors:
+    - FileContentDetector

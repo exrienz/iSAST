@@ -30,7 +30,7 @@ EXIT_DEPS = 3
 EXIT_INVALID_SOURCE = 4
 EXIT_PARTIAL = 5
 
-# repo locator: project[/path…][:ref] — e.g. paynet-login/applications/sso-v3:master
+# repo locator: project[/path…][:ref] — e.g. org/project/app:main
 REPO_PATTERN = re.compile(r"^[\w.\-]+(/[\w.\-]+)*(:[\w.\-]+)?$")
 
 
@@ -42,10 +42,27 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--source", type=str, help="source directory to scan")
     parser.add_argument("--report", type=str, help="path of the final.csv report to write")
     parser.add_argument(
+        "--rescan-report", "--rescan_report",
+        dest="rescan_report",
+        default=None,
+        help="previous report CSV whose findings are re-verified (requires --retest)",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="cleaned report written by --retest (same schema as --report)",
+    )
+    parser.add_argument(
+        "--retest",
+        action="store_true",
+        help="re-verify an existing report against --source and drop findings whose code is gone",
+    )
+    parser.add_argument(
         "--repo",
         type=str,
         default=None,
-        help="repository locator (e.g. paynet-login/applications/sso-v3:master); written into the CSV host column",
+        help="repository locator (e.g. org/project/app:main); written into the CSV host column",
     )
     parser.add_argument("--threads", type=int, default=4, help="scanner parallelism (default 4)")
     parser.add_argument("--timeout", type=int, default=3600, help="scan timeout in seconds (default 3600)")
@@ -113,7 +130,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     if not settings.ai_enabled:
         print("    AI disabled (AI_ENABLED=false)")
     elif not settings.ai_configured:
-        print("    NOT CONFIGURED — set AI_BASE_URL, AI_API_KEY, AI_MODEL in .env")
+        print("    NOT CONFIGURED — set LLM_PROVIDER, LLM_KEY, LLM_MODEL in .env")
     else:
         print(f"    base_url={settings.ai_base_url}")
         print(f"    model={settings.ai_model}")
@@ -154,6 +171,76 @@ def cmd_update(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_retest(args: argparse.Namespace) -> int:
+    from output.csv import ReportReadError
+    from retest.runner import RetestOptions, run_retest
+
+    missing = ", ".join(
+        flag
+        for flag, value in (
+            ("--source", args.source),
+            ("--rescan-report", args.rescan_report),
+            ("--output", args.output),
+        )
+        if not value
+    )
+    if missing:
+        print(
+            f"error: --retest requires {missing} (see python isast.py --help)",
+            file=sys.stderr,
+        )
+        return EXIT_INVALID_ARGS
+    if args.report:
+        print(
+            "error: --report is not used with --retest; the cleaned report goes to --output",
+            file=sys.stderr,
+        )
+        return EXIT_INVALID_ARGS
+    if args.resume is not None:
+        print("error: --retest and --resume are mutually exclusive", file=sys.stderr)
+        return EXIT_INVALID_ARGS
+    if args.repo and not REPO_PATTERN.match(args.repo):
+        print(
+            f"error: --repo must look like project/path[:ref] (got: {args.repo!r});"
+            " e.g. org/project/app:main",
+            file=sys.stderr,
+        )
+        return EXIT_INVALID_ARGS
+
+    source = Path(args.source).expanduser().resolve()
+    if not source.is_dir():
+        print(f"error: --source must be an existing directory: {source}", file=sys.stderr)
+        return EXIT_INVALID_SOURCE
+    rescan = Path(args.rescan_report).expanduser()
+    if not rescan.is_file():
+        print(f"error: --rescan-report not found: {rescan}", file=sys.stderr)
+        return EXIT_INVALID_SOURCE
+
+    try:
+        result = run_retest(
+            RetestOptions(
+                source=source,
+                rescan_report=rescan,
+                output=Path(args.output).expanduser(),
+                repo=args.repo,
+            )
+        )
+    except (ReportReadError, OSError) as exc:
+        print(f"error: retest failed: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME
+
+    if not args.quiet:
+        print(f"[i] retest: {result.read} row(s) read from {rescan}")
+        print(
+            f"    verified: {result.kept}"
+            f"  removed: {result.removed_absent} absent + {result.removed_unparseable} unparseable"
+        )
+        print(f"      {result.output_path}")
+        print("=" * 48)
+        print("Retest complete")
+    return EXIT_OK
+
+
 def cmd_scan(args: argparse.Namespace) -> int:
     from core.scanner import ScanConfig, Scanner
     from core.settings import load_settings
@@ -166,13 +253,10 @@ def cmd_scan(args: argparse.Namespace) -> int:
     if args.threads < 1 or args.timeout < 1:
         print("error: --threads and --timeout must be positive integers", file=sys.stderr)
         return EXIT_INVALID_ARGS
-    if args.quiet and args.verbose:
-        print("error: --quiet and --verbose are mutually exclusive", file=sys.stderr)
-        return EXIT_INVALID_ARGS
     if args.repo and not REPO_PATTERN.match(args.repo):
         print(
             f"error: --repo must look like project/path[:ref] (got: {args.repo!r});"
-            " e.g. paynet-login/applications/sso-v3:master",
+            " e.g. org/project/app:main",
             file=sys.stderr,
         )
         return EXIT_INVALID_ARGS
@@ -269,6 +353,17 @@ def main(argv=None) -> int:
             return cmd_doctor(args)
         if args.update:
             return cmd_update(args)
+        if (args.rescan_report or args.output) and not args.retest:
+            print(
+                "error: --rescan-report and --output are only valid with --retest",
+                file=sys.stderr,
+            )
+            return EXIT_INVALID_ARGS
+        if args.quiet and args.verbose:
+            print("error: --quiet and --verbose are mutually exclusive", file=sys.stderr)
+            return EXIT_INVALID_ARGS
+        if args.retest:
+            return cmd_retest(args)
         return cmd_scan(args)
     except KeyboardInterrupt:
         print("\n[i] interrupted by user", file=sys.stderr)

@@ -107,9 +107,9 @@ def load_settings(root: Optional[Path] = None, config_file: Optional[Path] = Non
     settings.codeql_version = env("CODEQL_VERSION", "")
 
     settings.ai_enabled = _env_bool(env("AI_ENABLED"), True)
-    settings.ai_base_url = env("AI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-    settings.ai_api_key = env("AI_API_KEY", "")
-    settings.ai_model = env("AI_MODEL", "")
+    settings.ai_base_url = env("LLM_PROVIDER", "https://api.openai.com/v1").rstrip("/")
+    settings.ai_api_key = env("LLM_KEY", "")
+    settings.ai_model = env("LLM_MODEL", "")
     settings.ai_timeout = _env_int(env("AI_TIMEOUT"), 120)
     settings.ai_max_retries = max(0, _env_int(env("AI_MAX_RETRIES"), 3))
     settings.ai_group_budget = max(0, _env_int(env("AI_GROUP_BUDGET"), 600))

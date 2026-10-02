@@ -214,7 +214,16 @@ python isast.py \
 --update
 --version
 --doctor
+--retest
+--rescan_report PATH
+--output PATH
 ```
+
+Retest mode (--retest) re-verifies a previous report's rows against
+--source without running engines or AI: rows whose flagged code (evidence
+cell) still matches the current files are copied unchanged to --output, rows
+whose code is gone or unverifiable are dropped. It never creates findings
+and never touches raw scanner evidence.
 
 Don't expose normal-user options such as:
 
@@ -432,9 +441,9 @@ CODEQL_VERSION=<PINNED_VERSION>
 
 AI_ENABLED=true
 
-AI_BASE_URL=https://api.openai.com/v1
-AI_API_KEY=sk-xxxxxxxx
-AI_MODEL=gpt-5.6
+LLM_PROVIDER=https://api.openai.com/v1
+LLM_KEY=sk-xxxxxxxx
+LLM_MODEL=gpt-5.6
 
 AI_TIMEOUT=120
 AI_MAX_RETRIES=3
@@ -457,8 +466,8 @@ The AI client must use an OpenAI-compatible interface.
 Conceptually:
 
 ```text
-POST {AI_BASE_URL}/chat/completions
-Authorization: Bearer {AI_API_KEY}
+POST {LLM_PROVIDER}/chat/completions
+Authorization: Bearer {LLM_KEY}
 Content-Type: application/json
 ```
 
@@ -497,9 +506,9 @@ other OpenAI-compatible gateway
 Only these change:
 
 ```env
-AI_BASE_URL=
-AI_API_KEY=
-AI_MODEL=
+LLM_PROVIDER=
+LLM_KEY=
+LLM_MODEL=
 ```
 
 ---
@@ -1466,9 +1475,9 @@ CODEQL_VERSION=<PINNED_VERSION>
 
 # AI
 AI_ENABLED=true
-AI_BASE_URL=https://api.openai.com/v1
-AI_API_KEY=
-AI_MODEL=gpt-5.6
+LLM_PROVIDER=https://api.openai.com/v1
+LLM_KEY=
+LLM_MODEL=gpt-5.6
 
 AI_TIMEOUT=120
 AI_MAX_RETRIES=3
@@ -1485,9 +1494,9 @@ AI_RISK_ANALYSIS=true
 For Bifrost, for example:
 
 ```env
-AI_BASE_URL=https://<bifrost-host>/v1
-AI_API_KEY=<KEY>
-AI_MODEL=<MODEL>
+LLM_PROVIDER=https://<bifrost-host>/v1
+LLM_KEY=<KEY>
+LLM_MODEL=<MODEL>
 ```
 
 No code change required.
