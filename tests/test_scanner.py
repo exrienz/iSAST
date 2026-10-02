@@ -128,3 +128,54 @@ def test_evidence_multi_line_end_line_and_snippet_lines():
         "\n"
         "a()\nb()"
     )
+
+
+def test_evidence_appends_after_context():
+    """A single flagged line (`return {`) gains the sink body from `after`."""
+    finding = _finding(
+        "cafe0808",
+        code_context={
+            "before": "def leak():",
+            "target": "return {",
+            "after": '    "uid": uid,\n    "token": token,\n}',
+        },
+    )
+    ai_results = {
+        finding.id: ValidationResult(finding_id=finding.id, status=ValidationStatus.CONFIRMED),
+    }
+    rows = _scanner()._build_canonical_findings([finding], ai_results, {finding.id: finding.id})
+    assert rows[0].evidence == (
+        "Affected File: src/routes/auth.py\n"
+        "Affected Line: 97 - 97\n"
+        "\n"
+        "return {\n"
+        '    "uid": uid,\n'
+        '    "token": token,\n'
+        "}"
+    )
+
+
+def test_engine_reported_end_line_wins_for_range():
+    """SARIF endLine sets the affected-line range even for a 1-line target."""
+    finding = _finding(
+        "cafe0909",
+        code_context={"target": "return {", "after": "    body()\n}"},
+    )
+    finding.end_line = 99
+    ai_results = {
+        finding.id: ValidationResult(finding_id=finding.id, status=ValidationStatus.CONFIRMED),
+    }
+    rows = _scanner()._build_canonical_findings([finding], ai_results, {finding.id: finding.id})
+    assert rows[0].end_line == 99
+    assert "Affected Line: 97 - 99\n" in rows[0].evidence
+
+
+def test_bogus_engine_end_line_falls_back():
+    """An endLine before the start line is ignored, not propagated."""
+    finding = _finding("cafe1010", code_context={})
+    finding.end_line = 10
+    ai_results = {
+        finding.id: ValidationResult(finding_id=finding.id, status=ValidationStatus.CONFIRMED),
+    }
+    rows = _scanner()._build_canonical_findings([finding], ai_results, {finding.id: finding.id})
+    assert rows[0].end_line == 97

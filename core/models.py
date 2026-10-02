@@ -123,6 +123,9 @@ class Finding:
     scanner_severity: str
     fingerprint: str = ""
     cwe: Optional[str] = None
+    # End of the flagged region as reported by the engine (SARIF endLine).
+    # 0 when unknown — canonical-build code falls back to the target-line span.
+    end_line: int = 0
     code_context: Dict[str, str] = field(default_factory=dict)
     scanner_count: int = 1
     finding_id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -147,6 +150,7 @@ class Finding:
             "scanner_severity": self.scanner_severity,
             "fingerprint": self.fingerprint,
             "cwe": self.cwe,
+            "end_line": self.end_line,
             "code_context": dict(self.code_context),
         }
 
@@ -173,6 +177,7 @@ class Finding:
             scanner_severity=str(payload.get("scanner_severity", "")),
             fingerprint=str(payload.get("fingerprint", "")),
             cwe=payload.get("cwe"),
+            end_line=int(payload.get("end_line") or 0),
             code_context=dict(payload.get("code_context") or {}),
             finding_id=str(payload.get("finding_id") or str(uuid.uuid4())),
         )

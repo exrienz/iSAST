@@ -61,7 +61,14 @@ _PRIMARY_ECOSYSTEM = {
 # Safety clamps on the evidence snippet (the normalizer already clamps its
 # per-line context; scanner_message and unknown future sources are not
 # pre-clamped, so re-clamping here keeps the evidence block bounded).
-MAX_EVIDENCE_SNIPPET_CHARS = 2000
+# 4000 = target line (<=2000) + bounded after window (<=2000), still far
+# below the 32,767-char spreadsheet cell ceiling.
+MAX_EVIDENCE_SNIPPET_CHARS = 4000
+# How many lines of the `after` context follow the target line in evidence.
+# CodeQL/OpenGrep dataflow results anchor at the flagged construct's first
+# line (often a bare `return {`), so the sink body below it is what makes
+# the snippet triageable.
+MAX_EVIDENCE_AFTER_LINES = 15
 
 
 @dataclass
@@ -695,9 +702,17 @@ class Scanner:
             if severity is None:
                 continue
             target = primary.code_context.get("target", "")
-            end_line = primary.line
-            if target.strip():
+            end_line = 0
+            if primary.end_line and primary.end_line >= primary.line:
+                # Engine-reported span wins when sane (some SARIF producers
+                # omit endLine; a nonsense 0 must not win either).
+                end_line = primary.end_line
+            elif target.strip():
+                # No engine-reported span: extend over the target text's own
+                # multi-line extent (single-line targets stay at primary.line).
                 end_line = primary.line + max(1, len(target.splitlines())) - 1
+            else:
+                end_line = primary.line
             scanners = sorted({m.scanner for m in members})
             findings.append(
                 CanonicalFinding(
@@ -730,9 +745,23 @@ class Scanner:
 
     @staticmethod
     def _build_evidence(primary: Finding, end_line: int, target: str) -> str:
-        """Structured evidence block: file path, line range, blank line, snippet."""
+        """Structured evidence block: file path, line range, blank line, snippet.
+
+        The flagged line alone is often meaningless (`return {` opening a
+        multi-line sink), so the bounded `after` window from the code context
+        follows it — the body of the flagged construct is what makes the
+        snippet triageable. The whole snippet is re-clamped for engines that
+        report no code context at all (scanner_message fallback).
+        """
+        body = (target or "").strip()
+        if body:
+            # rstrip (not strip): the first `after` line's indentation is
+            # part of the code, only the trailing blank padding goes.
+            after = (primary.code_context.get("after") or "").rstrip()
+            for line in after.splitlines()[:MAX_EVIDENCE_AFTER_LINES]:
+                body += "\n" + line
         snippet = clamp_text(
-            (target or "").strip() or primary.scanner_message,
+            body or primary.scanner_message,
             MAX_EVIDENCE_SNIPPET_CHARS,
         )
         return (

@@ -63,6 +63,7 @@ class FindingNormalizer:
             file=file_path,
             line=line,
             column=int(parsed.get("column") or 0),
+            end_line=int(parsed.get("end_line") or 0),
             scanner_title=str(parsed.get("scanner_title") or parsed.get("rule_id") or "Unknown"),
             scanner_message=str(parsed.get("scanner_message") or ""),
             scanner_severity=severity,

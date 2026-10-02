@@ -105,6 +105,10 @@ class SarifParser:
             "language": language,
             "file": rel_path,
             "line": int(region.get("startLine") or 0),
+            # Real flagged span end (CodeQL dataflow results often span many
+            # lines); 0 when the engine does not report endLine — callers
+            # fall back to deriving it from the matched code context.
+            "end_line": int(region.get("endLine") or 0),
             "column": int(region.get("startColumn") or 0),
             "scanner_title": rule_short_title(rule, rule_id),
             "scanner_message": (message or rule_id)[:1000],

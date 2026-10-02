@@ -32,7 +32,7 @@ def _sarif_document():
                             {
                                 "physicalLocation": {
                                     "artifactLocation": {"uri": "app/users.py"},
-                                    "region": {"startLine": 127, "startColumn": 12},
+                                    "region": {"startLine": 127, "endLine": 131, "startColumn": 12},
                                 }
                             }
                         ],
@@ -52,6 +52,7 @@ def test_parse_sarif_document(tmp_path):
     assert finding["rule_id"] == "python.sql.injection"
     assert finding["file"] == "app/users.py"
     assert finding["line"] == 127
+    assert finding["end_line"] == 131
     assert finding["column"] == 12
     assert finding["scanner_severity"] == "ERROR"
     assert finding["cwe"] == "CWE-089"
@@ -103,6 +104,26 @@ def test_normalizer_attaches_context_and_fingerprint(tmp_path: Path):
     assert "query(input)" in finding.code_context["target"]
     assert len(finding.fingerprint) == 64
     assert finding.scanner == "opengrep"
+
+
+def test_normalizer_threads_engine_end_line():
+    """SARIF endLine flows through to Finding.end_line (0 stays tolerated)."""
+    settings = Settings()
+    base = {
+        "scanner": "codeql",
+        "rule_id": "py/regex-dos",
+        "language": "python",
+        "file": "app/users.py",
+        "line": 6,
+        "column": 1,
+        "scanner_title": "ReDoS",
+        "scanner_message": "msg",
+        "scanner_severity": "ERROR",
+    }
+    with_engine_span = dict(base, end_line=12)
+    findings = FindingNormalizer(settings).normalize([with_engine_span, dict(base)], Path("."))
+    assert findings[0].end_line == 12
+    assert findings[1].end_line == 0
 
 
 def test_minified_single_line_target_is_clamped(tmp_path: Path):
