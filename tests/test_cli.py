@@ -200,6 +200,30 @@ def test_settings_load_env(tmp_path, monkeypatch):
     assert settings.ai_enabled is True
 
 
+def test_settings_bool_defaults_when_unset(tmp_path, monkeypatch):
+    """Empty-string env values (env() returns '' when absent) must fall back
+    to the code defaults, not disable the toggles. Regression: a user with no
+    .env silently got AI_ENABLED/AI_VALIDATE/etc = False."""
+    for key in (
+        "AI_ENABLED", "AI_VALIDATE", "AI_DEDUP", "AI_REWRITE", "AI_RISK_ANALYSIS",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    settings = load_settings(tmp_path)  # no .env at all
+    assert settings.ai_enabled is True
+    assert settings.ai_validate is True
+    assert settings.ai_dedup is True
+    assert settings.ai_rewrite is True
+    assert settings.ai_risk_analysis is True
+
+    monkeypatch.setenv("AI_ENABLED", "")  # explicit empty must behave the same
+    settings = load_settings(tmp_path)
+    assert settings.ai_enabled is True
+
+    monkeypatch.setenv("AI_ENABLED", "false")  # explicit false still disables
+    settings = load_settings(tmp_path)
+    assert settings.ai_enabled is False
+
+
 def test_settings_ai_group_budget_default_and_env(tmp_path, monkeypatch):
     monkeypatch.delenv("AI_GROUP_BUDGET", raising=False)
     settings = load_settings(tmp_path)

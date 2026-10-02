@@ -13,7 +13,9 @@ from typing import Any, Dict, Optional
 
 
 def _env_bool(value: Optional[str], default: bool) -> bool:
-    if value is None:
+    # Absent or empty means "unset": fall back to the code default.
+    # Only an explicit falsey string disables the feature.
+    if value is None or not value.strip():
         return default
     return value.strip().lower() in ("1", "true", "yes", "on")
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Fix: AI boolean toggles (`AI_ENABLED`, `AI_VALIDATE`, `AI_DEDUP`,
+  `AI_REWRITE`, `AI_RISK_ANALYSIS`) now correctly fall back to their `true`
+  code defaults when absent or empty in `.env` — previously a user with no
+  `.env` silently ran with the AI layer disabled.
 - Env var rename: `AI_BASE_URL` → `LLM_PROVIDER`, `AI_API_KEY` → `LLM_KEY`,
   `AI_MODEL` → `LLM_MODEL`. Update existing `.env` files; no code change
   required otherwise.

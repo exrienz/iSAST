@@ -54,7 +54,7 @@ fileignoreconfig:
   ignoreDetectors:
     - FileContentDetector
 - filename: core/settings.py
-  checksum: 000ca1dd631162faf28cad60804bcbd84e708e51d33e72a690ecd5ae1bd83436
+  checksum: f2fe19fd4c796e8788beb5422c329c4d524a0076fe72929cb7af5c8fd912cbbc
   ignoreDetectors:
     - FileContentDetector
 - filename: core/textclamp.py
@@ -114,7 +114,7 @@ fileignoreconfig:
   ignoreDetectors:
     - FileContentDetector
 - filename: tests/test_cli.py
-  checksum: d0ee4bd0413fe161694264de2589b6a73b43487fe45687ff341965da161351cb
+  checksum: be684eaf988df1e73ac3b655cfa61b2c2732dfb307c996449df95faead554187
   ignoreDetectors:
     - FileContentDetector
 - filename: tests/test_error_report.py
